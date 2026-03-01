@@ -1,63 +1,63 @@
 # pinglo
 
-Минималистичный AnyBar-подобный индикатор для `waybar` на Go.
+Minimal AnyBar-like indicator for `waybar` written in Go.
 
-`pinglod` хранит состояние точек (in-memory), `pinglo` отправляет события (`start`, `done`, `clear`) и рендерит модуль для `waybar`.
+`pinglod` keeps the in-memory state of dots, while `pinglo` sends events (`start`, `done`, `clear`) and renders the JSON payload for a Waybar module.
 
-## Что уже реализовано
+## What’s implemented
 
-- Желтая точка для команды в работе (`start`)
-- Зеленая точка при успешном завершении (`done --exit-code 0`)
-- Красная точка при ошибке (`done --exit-code != 0`)
-- Несколько параллельных задач одновременно
-- Дедупликация: одинаковая `command` в той же `cwd` обновляет ту же точку
-- Очистка всех точек (`clear`)
+- Yellow dot when a command becomes `running` (`start`)
+- Green dot when the command finishes successfully (`done --exit-code 0`)
+- Red dot when the command finishes with a failure (`done --exit-code != 0`)
+- Simultaneous tracking of up to ten long-running commands
+- Deduplication by `cwd + command`: rerunning the same command in the same directory updates the same dot
+- Clearing all dots (`clear`)
 
-## Сборка
+## Build
 
 ```bash
 go build -o ./bin/pinglod ./cmd/pinglod
 go build -o ./bin/pinglo ./cmd/pinglo
 ```
 
-## Запуск демона
+## Run the daemon
 
 ```bash
 ./bin/pinglod
 ```
 
-Сокет по умолчанию:
+Default socket selection:
 
-- `$PINGLO_SOCKET`, если задан
-- иначе `$XDG_RUNTIME_DIR/pinglo.sock`
-- иначе `/tmp/pinglo-<uid>.sock`
+- `$PINGLO_SOCKET`, if set
+- otherwise `$XDG_RUNTIME_DIR/pinglo.sock`
+- otherwise `/tmp/pinglo-<uid>.sock`
 
-## Команды CLI
+## CLI commands
 
 ```bash
-# создать/обновить точку как running
+# mark a dot as running
 ./bin/pinglo start --cmd "sleep 10" --cwd "$PWD"
 
-# завершить точку
+# finish the same dot
 ./bin/pinglo done --cmd "sleep 10" --cwd "$PWD" --exit-code 0
 
-# очистить все точки
+# clear the module
 ./bin/pinglo clear
 
-# посмотреть текущее состояние
+# inspect the current state
 ./bin/pinglo list
 ```
 
-## Waybar: модуль в config
+## Waybar: config snippet
 
-Добавь в `~/.config/waybar/config`:
+Add this module definition to your `~/.config/waybar/config`:
 
 ```json
 {
   "modules-right": ["custom/pinglo"],
   "custom/pinglo": {
     "return-type": "json",
-    "exec": "/home/alchemmist/code/pinglo/bin/pinglo render --format waybar",
+    "exec": "./bin/pinglo render --format waybar",
     "interval": 1,
     "escape": false,
     "tooltip": true
@@ -65,11 +65,11 @@ go build -o ./bin/pinglo ./cmd/pinglo
 }
 ```
 
-Если у тебя уже есть `modules-right`, просто добавь туда `"custom/pinglo"`.
+If `modules-right` already exists, append `"custom/pinglo"` to the array.
 
-## Waybar: стили в style.css
+## Waybar: style snippet
 
-Добавь в `~/.config/waybar/style.css`:
+In `~/.config/waybar/style.css`:
 
 ```css
 #custom-pinglo {
@@ -84,15 +84,15 @@ go build -o ./bin/pinglo ./cmd/pinglo
 }
 ```
 
-Цвета точек задаются самим `pinglo render` через Pango-разметку:
+Dot colors are encoded in the Pango markup emitted by `pinglo render`:
 
-- running: `#e5c07b` (желтый)
-- success: `#98c379` (зеленый)
-- failed: `#e06c75` (красный)
+- running → `#e5c07b`
+- success → `#98c379`
+- failed → `#e06c75`
 
-## Базовый shell flow
+## Basic shell flow
 
-Минимально вручную:
+Manual flow:
 
 ```bash
 ./bin/pinglo start --cmd "long-command" --cwd "$PWD"
@@ -100,9 +100,9 @@ long-command
 ./bin/pinglo done --cmd "long-command" --cwd "$PWD" --exit-code $?
 ```
 
-### Zsh-хуки (базовый автотрекинг команд с ведущим пробелом)
+### Zsh hook for commands prefixed with a space
 
-Добавь в `~/.zshrc`:
+Add to your `~/.zshrc`:
 
 ```zsh
 autoload -Uz add-zsh-hook
@@ -110,7 +110,6 @@ autoload -Uz add-zsh-hook
 function _pinglo_preexec() {
   local raw="$1"
 
-  # Отслеживаем только команды, которые введены с ведущим пробелом.
   if [[ "$raw" == ' '* ]]; then
     export PINGLO_TRACKED_CMD="${raw# }"
     pinglo start --cmd "$PINGLO_TRACKED_CMD" --cwd "$PWD" >/dev/null 2>&1
@@ -131,13 +130,9 @@ add-zsh-hook preexec _pinglo_preexec
 add-zsh-hook precmd _pinglo_precmd
 ```
 
-Для очистки модуля:
+Call `pinglo clear` to wipe the module manually.
 
-```bash
-pinglo clear
-```
+## Limitations
 
-## Ограничения базовой версии
-
-- Состояние хранится в памяти демона и сбрасывается после его перезапуска.
-- В одном shell одновременный запуск нескольких фоновых команд через хуки может потребовать более сложного трекинга (в базовой версии хранится один активный `PINGLO_TRACKED_CMD` на сессию).
+- State is held in memory; restarting the daemon clears everything.
+- The shell hook example tracks a single active command per session; extending it to multiple concurrent commands requires additional bookkeeping.
