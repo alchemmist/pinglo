@@ -15,7 +15,7 @@ Minimal AnyBar-like indicator for `waybar` written in Go.
 
 ## Build
 
-```bashread
+```bash
 go build -o pinglod ./cmd/pinglod
 go build -o pinglo ./cmd/pinglo
 ```
@@ -63,7 +63,8 @@ Add this module definition to your `~/.config/waybar/config`. `pinglod` uses `SI
     "interval": "once",
     "signal": 4,
     "escape": false,
-    "tooltip": true
+    "tooltip": true,
+    "markup": "pango"
   }
 }
 ```
@@ -76,22 +77,48 @@ In `~/.config/waybar/style.css`:
 
 ```css
 #custom-pinglo {
-  padding: 0 8px;
-  margin: 0 6px;
   font-size: 14px;
+  border-radius: 10px;
+  margin-right: 5px;
 }
 
 #custom-pinglo.empty {
   padding: 0;
   margin: 0;
 }
+
+#custom-pinglo.running {
+  color: #e5c07b;
+}
+
+#custom-pinglo.success {
+  color: #98c379;
+}
+
+#custom-pinglo.failed {
+  color: #e06c75;
+}
+
+#custom-pinglo .pinglo-dot {
+  font-size: 16px;
+  margin-right: 2px;
+}
+
+#custom-pinglo .pinglo-running {
+  color: #e5c07b;
+}
+#custom-pinglo .pinglo-success {
+  color: #98c379;
+}
+#custom-pinglo .pinglo-failed {
+  color: #e06c75;
+}
+#custom-pinglo .pinglo-unknown {
+  color: #abb2bf;
+}
 ```
 
-Dot colors are encoded in the Pango markup emitted by `pinglo render`:
-
-- running → `#e5c07b`
-- success → `#98c379`
-- failed → `#e06c75`
+Waybar receives dots as a Pango-marked string (`text`), so each dot is rendered with a `<span foreground="…">●</span>` and CSS cannot target those spans by `class`. The `class` field therefore remains semantic (one of `running`, `success`, `failed`, `empty`) so you can color the module container via selectors like `#custom-pinglo.running`. The order of dots still matches the order commands were started, and the tooltip lists them in the same sequence.
 
 ## Basic shell flow
 

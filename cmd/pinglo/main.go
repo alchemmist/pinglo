@@ -75,7 +75,11 @@ func main() {
 		case "plain":
 			fmt.Println(renderPlain(resp.Items))
 		case "waybar":
-			payload := waybarPayload{Text: renderDots(resp.Items), Tooltip: renderTooltip(resp.Items)}
+			payload := waybarPayload{
+				Text:    renderDots(resp.Items),
+				Tooltip: renderTooltip(resp.Items),
+				Class:   renderClass(resp.Items),
+			}
 			if len(resp.Items) == 0 {
 				payload.Class = "empty"
 			}
@@ -120,15 +124,23 @@ func send(socket string, req pinglo.Request) (pinglo.Response, error) {
 	return resp, nil
 }
 
-func renderDots(items []pinglo.Item) string {
+func renderClass(items []pinglo.Item) string {
 	if len(items) == 0 {
-		return ""
+		return "empty"
 	}
-	parts := make([]string, 0, len(items))
+	hasFailed := false
 	for _, item := range items {
-		parts = append(parts, dotForStatus(item.Status))
+		switch item.Status {
+		case pinglo.StatusRunning:
+			return "running"
+		case pinglo.StatusFailed:
+			hasFailed = true
+		}
 	}
-	return strings.Join(parts, " ")
+	if hasFailed {
+		return "failed"
+	}
+	return "success"
 }
 
 func renderPlain(items []pinglo.Item) string {
@@ -140,6 +152,17 @@ func renderPlain(items []pinglo.Item) string {
 		parts = append(parts, string(item.Status)+":"+item.Command)
 	}
 	return strings.Join(parts, " | ")
+}
+
+func renderDots(items []pinglo.Item) string {
+	if len(items) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(items))
+	for _, item := range items {
+		parts = append(parts, dotForStatus(item.Status))
+	}
+	return strings.Join(parts, " ")
 }
 
 func renderTooltip(items []pinglo.Item) string {
@@ -156,13 +179,13 @@ func renderTooltip(items []pinglo.Item) string {
 func dotForStatus(s pinglo.Status) string {
 	switch s {
 	case pinglo.StatusRunning:
-		return "<span foreground='#e5c07b'>●</span>"
+		return `<span foreground="#e5c07b">●</span>`
 	case pinglo.StatusSuccess:
-		return "<span foreground='#98c379'>●</span>"
+		return `<span foreground="#98c379">●</span>`
 	case pinglo.StatusFailed:
-		return "<span foreground='#e06c75'>●</span>"
+		return `<span foreground="#e06c75">●</span>`
 	default:
-		return "<span foreground='#abb2bf'>●</span>"
+		return `<span foreground="#abb2bf">●</span>`
 	}
 }
 
