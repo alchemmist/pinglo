@@ -1,4 +1,5 @@
 BIN_DIR := ./bin
+GOBIN := $(shell go env GOPATH)/bin
 GOFILES := ./cmd/pinglo ./cmd/pinglod ./...
 
 .PHONY: all build test clean run-daemon install
@@ -28,5 +29,6 @@ run-daemon:
 	@$(BIN_DIR)/pinglod
 
 install: build
-	@echo "installing pinglo/pinglod into $(BIN_DIR)"
-	@mkdir -p $(BIN_DIR)
+	@echo "installing pinglo/pinglod into $(GOBIN)"
+	@mkdir -p $(GOBIN)
+	@GOBIN=$(GOBIN) go install ./cmd/pinglo ./cmd/pinglod

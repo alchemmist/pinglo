@@ -15,16 +15,18 @@ Minimal AnyBar-like indicator for `waybar` written in Go.
 
 ## Build
 
-```bash
-go build -o ./bin/pinglod ./cmd/pinglod
-go build -o ./bin/pinglo ./cmd/pinglo
+```bashread
+go build -o pinglod ./cmd/pinglod
+go build -o pinglo ./cmd/pinglo
 ```
 
 ## Run the daemon
 
 ```bash
-./bin/pinglod
+pinglod
 ```
+
+`pinglod` will notify any Waybar processes with `SIGRTMIN+4` (or the offset specified via `-signal-offset`) after every `start`, `done`, or `clear`, so the module refreshes only when the state actually changes.
 
 Default socket selection:
 
@@ -36,36 +38,37 @@ Default socket selection:
 
 ```bash
 # mark a dot as running
-./bin/pinglo start --cmd "sleep 10" --cwd "$PWD"
+pinglo start --cmd "sleep 10" --cwd "$PWD"
 
 # finish the same dot
-./bin/pinglo done --cmd "sleep 10" --cwd "$PWD" --exit-code 0
+pinglo done --cmd "sleep 10" --cwd "$PWD" --exit-code 0
 
 # clear the module
-./bin/pinglo clear
+pinglo clear
 
 # inspect the current state
-./bin/pinglo list
+pinglo list
 ```
 
 ## Waybar: config snippet
 
-Add this module definition to your `~/.config/waybar/config`:
+Add this module definition to your `~/.config/waybar/config`. `pinglod` uses `SIGRTMIN+4` by default, so the module must watch `signal: 4` and refresh `interval: "once"`:
 
 ```json
 {
   "modules-right": ["custom/pinglo"],
   "custom/pinglo": {
     "return-type": "json",
-    "exec": "./bin/pinglo render --format waybar",
-    "interval": 1,
+    "exec": "pinglo render --format waybar",
+    "interval": "once",
+    "signal": 4,
     "escape": false,
     "tooltip": true
   }
 }
 ```
 
-If `modules-right` already exists, append `"custom/pinglo"` to the array.
+If you need a different real-time signal, start `pinglod` with `-signal-offset N` and set the module `signal` to the same offset.
 
 ## Waybar: style snippet
 
@@ -95,9 +98,9 @@ Dot colors are encoded in the Pango markup emitted by `pinglo render`:
 Manual flow:
 
 ```bash
-./bin/pinglo start --cmd "long-command" --cwd "$PWD"
+pinglo start --cmd "long-command" --cwd "$PWD"
 long-command
-./bin/pinglo done --cmd "long-command" --cwd "$PWD" --exit-code $?
+pinglo done --cmd "long-command" --cwd "$PWD" --exit-code $?
 ```
 
 ### Zsh hook for commands prefixed with a space

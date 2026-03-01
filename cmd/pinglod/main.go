@@ -9,17 +9,23 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
 	"pinglo/internal/pinglo"
 )
 
+const sigRTMin = 34
+
 func main() {
 	var socket string
+	var signalOffset int
 	flag.StringVar(&socket, "socket", pinglo.DefaultSocketPath(), "unix socket path")
+	flag.IntVar(&signalOffset, "signal-offset", 4, "signal offset from SIGRTMIN to refresh Waybar module")
 	flag.Parse()
 
 	if err := os.MkdirAll(filepath.Dir(socket), 0o755); err != nil {
@@ -37,7 +43,7 @@ func main() {
 	}()
 	_ = os.Chmod(socket, 0o600)
 
-	mgr := pinglo.NewManager()
+	mgr := pinglo.NewManager(makeWaybarNotifier(signalOffset))
 
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
@@ -100,5 +106,29 @@ func dispatch(req pinglo.Request, mgr *pinglo.Manager) pinglo.Response {
 		return pinglo.Response{OK: true, Items: mgr.List()}
 	default:
 		return pinglo.Response{OK: false, Error: "unknown action"}
+	}
+}
+
+func makeWaybarNotifier(offset int) func() {
+	if offset < 0 || offset > 31 {
+		return nil
+	}
+	sig := syscall.Signal(sigRTMin + offset)
+	return func() {
+		notifyWaybar(sig)
+	}
+}
+
+func notifyWaybar(sig syscall.Signal) {
+	out, err := exec.Command("pgrep", "waybar").Output()
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Fields(strings.TrimSpace(string(out))) {
+		pid, err := strconv.Atoi(line)
+		if err != nil {
+			continue
+		}
+		_ = syscall.Kill(pid, sig)
 	}
 }

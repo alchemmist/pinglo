@@ -43,14 +43,15 @@ type Response struct {
 }
 
 type Manager struct {
-	mu     sync.Mutex
-	items  map[string]*Item
-	nextID int
-	order  int
+	mu       sync.Mutex
+	items    map[string]*Item
+	nextID   int
+	order    int
+	onChange func()
 }
 
-func NewManager() *Manager {
-	return &Manager{items: make(map[string]*Item)}
+func NewManager(onChange func()) *Manager {
+	return &Manager{items: make(map[string]*Item), onChange: onChange}
 }
 
 func BuildKey(cwd, command string) string {
@@ -59,19 +60,21 @@ func BuildKey(cwd, command string) string {
 
 func (m *Manager) Start(cwd, command string) *Item {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	key := BuildKey(cwd, command)
 	now := time.Now()
-	if existing, ok := m.items[key]; ok {
-		existing.Status = StatusRunning
-		existing.UpdatedAt = now
-		return clone(existing)
+	item, ok := m.items[key]
+	if ok {
+		item.Status = StatusRunning
+		item.UpdatedAt = now
+		result := clone(item)
+		m.mu.Unlock()
+		m.trigger()
+		return result
 	}
 
 	m.nextID++
 	m.order++
-	item := &Item{
+	item = &Item{
 		ID:        fmt.Sprintf("dot-%d", m.nextID),
 		Key:       key,
 		Cwd:       cwd,
@@ -82,13 +85,14 @@ func (m *Manager) Start(cwd, command string) *Item {
 		Order:     m.order,
 	}
 	m.items[key] = item
-	return clone(item)
+	result := clone(item)
+	m.mu.Unlock()
+	m.trigger()
+	return result
 }
 
 func (m *Manager) Finish(cwd, command string, exitCode int) *Item {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	key := BuildKey(cwd, command)
 	now := time.Now()
 	status := StatusFailed
@@ -116,14 +120,18 @@ func (m *Manager) Finish(cwd, command string, exitCode int) *Item {
 	if item.StartedAt.IsZero() {
 		item.StartedAt = now
 	}
-	return clone(item)
+	result := clone(item)
+	m.mu.Unlock()
+	m.trigger()
+	return result
 }
 
 func (m *Manager) Clear() {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.items = make(map[string]*Item)
 	m.order = 0
+	m.mu.Unlock()
+	m.trigger()
 }
 
 func (m *Manager) List() []Item {
@@ -146,6 +154,12 @@ func (m *Manager) List() []Item {
 func clone(item *Item) *Item {
 	cp := *item
 	return &cp
+}
+
+func (m *Manager) trigger() {
+	if m.onChange != nil {
+		m.onChange()
+	}
 }
 
 func DefaultSocketPath() string {
