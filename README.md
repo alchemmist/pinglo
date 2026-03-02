@@ -1,4 +1,4 @@
-# pinglo
+<h1><img src="./assets/logo.png" alt="Favicon Preview" width="90" align="center"> pinglo</h1>
 
 Minimal status tracker for `waybar` written in Go.
 
