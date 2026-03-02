@@ -26,6 +26,14 @@ go build -o pinglo ./cmd/pinglo
 pinglod
 ```
 
+`pinglod` automatically persists dots to a state file so that your indicators survive restarts. The location is chosen in order:
+
+- `$PINGLO_STATE_FILE`, if set
+- otherwise `$XDG_DATA_HOME/pinglo/state.json` (defaults to `~/.local/share/pinglo/state.json`)
+- otherwise the system temp dir.
+
+You can override the path to keep state on a shared drive or use a RAM-backed file.
+
 `pinglod` will notify any Waybar processes with `SIGRTMIN+4` (or the offset specified via `-signal-offset`) after every `start`, `done`, or `clear`, so the module refreshes only when the state actually changes.
 
 Default socket selection:
@@ -66,6 +74,8 @@ pinglo dot remove --id deploy
 ```
 
 `dot set` accepts `--status` values `running`, `success`, or `failed` (defaults to `running` if omitted). The tooltip text is displayed as supplied, and the color is applied directly to the dot in Waybar. Use this API for any indicator that only needs a colored point and a short tooltip; the classic `start`/`done` helpers keep working for command tracking.
+
+Because the daemon persists its state, dots created via `dot set` survive `pinglod` restarts and even system boot, so long as the state file remains reachable.
 
 ## Waybar: config snippet
 

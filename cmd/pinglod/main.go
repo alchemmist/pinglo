@@ -43,7 +43,7 @@ func main() {
 	}()
 	_ = os.Chmod(socket, 0o600)
 
-	mgr := pinglo.NewManager(makeWaybarNotifier(signalOffset))
+	mgr := pinglo.NewManager(makeWaybarNotifier(signalOffset), pinglo.DefaultStatePath())
 
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)

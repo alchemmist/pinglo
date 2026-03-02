@@ -1,10 +1,14 @@
 package pinglo
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -53,15 +57,20 @@ type Response struct {
 }
 
 type Manager struct {
-	mu       sync.Mutex
-	items    map[string]*Item
-	nextID   int
-	order    int
-	onChange func()
+	mu        sync.Mutex
+	items     map[string]*Item
+	nextID    int
+	order     int
+	onChange  func()
+	stateFile string
 }
 
-func NewManager(onChange func()) *Manager {
-	return &Manager{items: make(map[string]*Item), onChange: onChange}
+func NewManager(onChange func(), stateFile string) *Manager {
+	m := &Manager{items: make(map[string]*Item), onChange: onChange, stateFile: stateFile}
+	if err := m.LoadState(); err != nil {
+		log.Printf("pinglo: failed to load state: %v", err)
+	}
+	return m
 }
 
 func BuildKey(cwd, command string) string {
@@ -132,6 +141,7 @@ func (m *Manager) Finish(cwd, command string, exitCode int) *Item {
 	}
 	result := clone(item)
 	m.mu.Unlock()
+	m.persist()
 	m.trigger()
 	return result
 }
@@ -141,6 +151,7 @@ func (m *Manager) Clear() {
 	m.items = make(map[string]*Item)
 	m.order = 0
 	m.mu.Unlock()
+	m.persist()
 	m.trigger()
 }
 
@@ -202,6 +213,7 @@ func (m *Manager) SetDot(id, color, tooltip string, status Status) *Item {
 	}
 	result := clone(item)
 	m.mu.Unlock()
+	m.persist()
 	m.trigger()
 	return result
 }
@@ -216,8 +228,101 @@ func (m *Manager) RemoveDot(id string) bool {
 		return false
 	}
 	delete(m.items, id)
+	m.persist()
 	m.trigger()
 	return true
+}
+
+func (m *Manager) LoadState() error {
+	if strings.TrimSpace(m.stateFile) == "" {
+		return nil
+	}
+	data, err := os.ReadFile(m.stateFile)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var dump struct {
+		Items []Item `json:"items"`
+	}
+	if err := json.Unmarshal(data, &dump); err != nil {
+		return err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.items = make(map[string]*Item, len(dump.Items))
+	m.nextID = 0
+	m.order = 0
+	for _, item := range dump.Items {
+		cp := clone(&item)
+		m.items[cp.Key] = cp
+		if n := parseDotNumericID(cp.ID); n > m.nextID {
+			m.nextID = n
+		}
+		if cp.Order > m.order {
+			m.order = cp.Order
+		}
+	}
+	return nil
+}
+
+func (m *Manager) persist() {
+	if strings.TrimSpace(m.stateFile) == "" {
+		return
+	}
+	items := m.List()
+	dump := struct {
+		Items []Item `json:"items"`
+	}{
+		Items: items,
+	}
+	data, err := json.MarshalIndent(dump, "", "  ")
+	if err != nil {
+		log.Printf("pinglo: failed to marshal state: %v", err)
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(m.stateFile), 0o755); err != nil {
+		log.Printf("pinglo: failed to create state dir: %v", err)
+		return
+	}
+	tmp := m.stateFile + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		log.Printf("pinglo: failed to write state: %v", err)
+		return
+	}
+	if err := os.Rename(tmp, m.stateFile); err != nil {
+		log.Printf("pinglo: failed to finalize state file: %v", err)
+	}
+}
+
+func parseDotNumericID(id string) int {
+	const prefix = "dot-"
+	if !strings.HasPrefix(id, prefix) {
+		return 0
+	}
+	num, err := strconv.Atoi(id[len(prefix):])
+	if err != nil {
+		return 0
+	}
+	return num
+}
+
+func DefaultStatePath() string {
+	if path := strings.TrimSpace(os.Getenv("PINGLO_STATE_FILE")); path != "" {
+		return path
+	}
+	dataHome := strings.TrimSpace(os.Getenv("XDG_DATA_HOME"))
+	if dataHome == "" {
+		if home, err := os.UserHomeDir(); err == nil {
+			dataHome = filepath.Join(home, ".local", "share")
+		}
+	}
+	if dataHome == "" {
+		dataHome = os.TempDir()
+	}
+	return filepath.Join(dataHome, "pinglo", "state.json")
 }
 
 func (m *Manager) trigger() {

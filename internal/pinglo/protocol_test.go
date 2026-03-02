@@ -2,6 +2,7 @@ package pinglo
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -9,7 +10,7 @@ func TestManagerStartFinishAndClear(t *testing.T) {
 	changes := 0
 	mgr := NewManager(func() {
 		changes++
-	})
+	}, "")
 
 	item1 := mgr.Start("/tmp", "build")
 	if item1.Status != StatusRunning {
@@ -45,7 +46,7 @@ func TestManagerStartFinishAndClear(t *testing.T) {
 }
 
 func TestManagerDeduplication(t *testing.T) {
-	mgr := NewManager(nil)
+	mgr := NewManager(nil, "")
 	mgr.Start("/tmp/project", "sync")
 	mgr.Start("/tmp/project", "sync")
 	if len(mgr.List()) != 1 {
@@ -84,7 +85,7 @@ func TestDefaultSocketPathEnvPrecedence(t *testing.T) {
 }
 
 func TestSetDotCustom(t *testing.T) {
-	mgr := NewManager(nil)
+	mgr := NewManager(nil, "")
 	mgr.SetDot("custom-1", "#123456", "tooltip text", StatusRunning)
 	items := mgr.List()
 	if len(items) != 1 {
@@ -96,7 +97,7 @@ func TestSetDotCustom(t *testing.T) {
 }
 
 func TestRemoveDot(t *testing.T) {
-	mgr := NewManager(nil)
+	mgr := NewManager(nil, "")
 	mgr.SetDot("a", "", "", StatusFailed)
 	if !mgr.RemoveDot("a") {
 		t.Fatalf("expected remove to succeed")
@@ -106,5 +107,25 @@ func TestRemoveDot(t *testing.T) {
 	}
 	if mgr.RemoveDot("a") {
 		t.Fatalf("removing absent dot should return false")
+	}
+}
+
+func TestStatePersistence(t *testing.T) {
+	dir := t.TempDir()
+	stateFile := filepath.Join(dir, "state.json")
+	mgr := NewManager(nil, stateFile)
+	mgr.SetDot("persistent", "#abc", "persisted tooltip", StatusRunning)
+
+	if _, err := os.Stat(stateFile); err != nil {
+		t.Fatalf("state file missing: %v", err)
+	}
+
+	mgr2 := NewManager(nil, stateFile)
+	items := mgr2.List()
+	if len(items) != 1 {
+		t.Fatalf("expected persisted item, got %d", len(items))
+	}
+	if items[0].ID != "persistent" || items[0].Color != "#abc" {
+		t.Fatalf("persisted data mismatch: %+v", items[0])
 	}
 }
