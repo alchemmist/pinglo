@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>pinglo · Minimal Status Dots for Waybar</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap");
+    :root {
+      color-scheme: dark;
+      font-family: "Space Grotesk", system-ui, sans-serif;
+      background-color: #03060b;
+      color: #f5f7fb;
+      --panel: #070b12;
+      --accent: #3cf7d6;
+      --muted: rgba(255,255,255,0.65);
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #070c14 0%, #02070b 45%, #010307 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1rem;
+    }
+    .surface {
+      width: min(960px, 100%);
+      background: #020511;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 26px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 45px rgba(1,3,7,0.45);
+      display: flex;
+      flex-direction: column;
+      gap: 1.8rem;
+    }
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    header h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 68ch;
+    }
+    .content {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+    .panel {
+      background: var(--panel);
+      border-radius: 18px;
+      padding: 1.25rem;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.25rem;
+    }
+    code {
+      display: block;
+      font-family: "JetBrains Mono", "Fira Code", monospace;
+      margin: 0.25rem 0;
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      color: #fefefe;
+    }
+    .log {
+      font-size: 0.95rem;
+      font-family: "JetBrains Mono", "Fira Code", monospace;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .cta {
+      padding: 0.85rem 1.4rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.25);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 500;
+      align-self: flex-start;
+    }
+    footer {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="surface">
+    <header>
+      <p class="tag">waybar-native</p>
+      <h1>pinglo · status dots that remember</h1>
+      <p>Track every long-running task, persistent custom indicator, or ambient signal with colored glyphs in Waybar. The daemon keeps its state across reboots while emitting precise RT signals to keep your panel responsive.</p>
+      <a class="cta" href="#usage">See usage →</a>
+    </header>
+
+    <section class="content">
+      <article class="panel">
+        <h2>Signal-first refresh</h2>
+        <p>The module is configured with <code>interval: "once"</code> and listens for <code>SIGRTMIN+4</code>. The daemon emits that signal after every state change, so Waybar redraws only when dots move.</p>
+      </article>
+      <article class="panel">
+        <h2>State survives restarts</h2>
+        <p>Every mutation writes JSON to <code>$XDG_DATA_HOME/pinglo/state.json</code> (override via <code>$PINGLO_STATE_FILE</code>). After a reboot the dots reappear exactly as before.</p>
+      </article>
+      <article class="panel">
+        <h2>Flexible dot API</h2>
+        <p>Besides the shell hooks, you can manage colored dots with <code>pinglo dot set/remove</code>, each accompanied by a tooltip and status that render left-to-right in Waybar.</p>
+      </article>
+    </section>
+
+    <section id="usage" class="panel">
+      <h2>How it fits</h2>
+      <p>Use the CLI hooks for ad-hoc commands, persist custom indicators via the dot API, and pair the JSON renderer with this Waybar module snippet.</p>
+      <div class="log">
+        <code>return-type: "json"</code>
+        <code>exec: "pinglo render --format waybar"</code>
+        <code>interval: "once"</code>
+        <code>signal: 4</code>
+        <code>escape: false</code>
+        <code>markup: "pango"</code>
+      </div>
+    </section>
+
+    <section class="content">
+      <article class="panel">
+        <h2>Waybar snippet</h2>
+        <div class="log">
+          "exec": "pinglo render --format waybar"<br />
+          "return-type": "json"<br />
+          "interval": "once"<br />
+          "signal": 4<br />
+          "escape": false<br />
+          "markup": "pango"
+        </div>
+      </article>
+      <article class="panel">
+        <h2>Quick signal</h2>
+        <div class="log">
+          pkill -SIGRTMIN+4 waybar
+        </div>
+      </article>
+    </section>
+
+    <footer>
+      pinglo · minimal dots, persistent state, human-readable tooling. Built in Go, made for Waybar.
+    </footer>
+  </div>
+</body>
+</html>
