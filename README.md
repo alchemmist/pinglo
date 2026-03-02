@@ -64,7 +64,8 @@ Add this module definition to your `~/.config/waybar/config`. `pinglod` uses `SI
     "signal": 4,
     "escape": false,
     "tooltip": true,
-    "markup": "pango"
+    "markup": "pango",
+    "on-click": "pinglo clear"
   }
 }
 ```
