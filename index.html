@@ -22,13 +22,29 @@
       margin: 0;
       min-height: 100vh;
       background: linear-gradient(180deg, #070c14 0%, #02070b 45%, #010307 100%);
+      position: relative;
+      overflow-x: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    body::-webkit-scrollbar {
+      display: none;
+    }
+    #particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 3rem 1rem 4rem;
       display: flex;
-      align-items: center;
       justify-content: center;
-      padding: 3rem 1rem;
     }
     .surface {
-      width: min(960px, 100%);
+      width: 100%;
       background: #020511;
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 26px;
@@ -37,6 +53,25 @@
       display: flex;
       flex-direction: column;
       gap: 1.8rem;
+      position: relative;
+      z-index: 1;
+      overflow: hidden;
+    }
+    .surface > * {
+      position: relative;
+      z-index: 1;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(90deg, rgba(255,255,255,0.16) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,0.16) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mix-blend-mode: screen;
+      opacity: 0.35;
+      pointer-events: none;
     }
     header {
       display: flex;
@@ -99,13 +134,14 @@
   </style>
 </head>
 <body>
-  <div class="surface">
-    <header>
-      <p class="tag">waybar-native</p>
-      <h1>pinglo · status dots that remember</h1>
-      <p>Track every long-running task, persistent custom indicator, or ambient signal with colored glyphs in Waybar. The daemon keeps its state across reboots while emitting precise RT signals to keep your panel responsive.</p>
-      <a class="cta" href="#usage">See usage →</a>
-    </header>
+  <div class="page">
+    <div class="surface">
+      <header>
+        <p class="tag">waybar-native</p>
+        <h1>pinglo · status dots that remember</h1>
+        <p>Track every long-running task, persistent custom indicator, or ambient signal with colored glyphs in Waybar. The daemon keeps its state across reboots while emitting precise RT signals to keep your panel responsive.</p>
+        <a class="cta" href="#usage">See usage →</a>
+      </header>
 
     <section class="content">
       <article class="panel">
@@ -155,9 +191,114 @@
       </article>
     </section>
 
-    <footer>
-      pinglo · minimal dots, persistent state, human-readable tooling. Built in Go, made for Waybar.
-    </footer>
+      <footer>
+        pinglo · minimal dots, persistent state, human-readable tooling. Built in Go, made for Waybar.
+      </footer>
+    </div>
   </div>
+  <div id="particles"></div>
+  <script>
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const container = document.getElementById("particles");
+    container.appendChild(canvas);
+    const palette = ["#facc15", "#4ade80", "#f87171", "#94a3b8", "#38bdf8", "#a855f7"];
+    const phases = [
+      { name: "fadein", duration: 3600 },
+      { name: "glow", duration: 5200 },
+      { name: "hold", duration: 2500 },
+      { name: "fadeout", duration: 3000 }
+    ];
+    const total = phases.reduce((sum, phase) => sum + phase.duration, 0);
+    const dots = [];
+    let w = window.innerWidth;
+    let h = window.innerHeight;
+    let last = performance.now();
+
+    function resize() {
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = w;
+      canvas.height = h;
+    }
+
+    function createDot() {
+      const hueIndex = Math.floor(Math.random() * palette.length);
+      return {
+        x: Math.random() * w,
+        y: Math.random() * h,
+        radius: 5,
+      hueIndex,
+        age: Math.random() * total * 0.75
+      };
+    }
+
+    function rebuild() {
+      dots.length = 0;
+      for (let i = 0; i < 9; i++) {
+        dots.push(createDot());
+      }
+    }
+
+    function stage(age) {
+      let t = age % total;
+      for (const phase of phases) {
+        if (t <= phase.duration) {
+          return { phase, progress: t / phase.duration };
+        }
+        t -= phase.duration;
+      }
+      return { phase: phases[phases.length - 1], progress: 1 };
+    }
+
+    function draw(now) {
+      const delta = now - last;
+      last = now;
+      ctx.clearRect(0, 0, w, h);
+      dots.forEach(dot => {
+        dot.age += delta;
+        if (dot.age >= total) {
+          Object.assign(dot, createDot());
+          dot.age %= total;
+        }
+        const { phase, progress } = stage(dot.age);
+        const color = palette[dot.hueIndex];
+        let alpha = 0;
+        let glow = 0;
+        if (phase.name === "fadein") {
+          alpha = progress;
+          glow = 0.6 * progress;
+        } else if (phase.name === "glow") {
+          const pulse = Math.sin(progress * Math.PI * 2 * 3);
+          alpha = 0.55 + pulse * 0.35;
+          glow = 0.8 + pulse * 0.4;
+        } else if (phase.name === "hold") {
+          alpha = 1 - progress * 0.4;
+          glow = 0.4 + progress * 0.2;
+        } else {
+          alpha = 1 - progress;
+          glow = 0.4 * (1 - progress);
+        }
+        ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 24 * Math.max(alpha, glow);
+        ctx.beginPath();
+        ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(draw);
+    }
+
+    rebuild();
+    resize();
+    requestAnimationFrame(draw);
+    window.addEventListener("resize", () => {
+      resize();
+      rebuild();
+    });
+  </script>
 </body>
 </html>
