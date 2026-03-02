@@ -1,6 +1,6 @@
 # pinglo
 
-Minimal AnyBar-like indicator for `waybar` written in Go.
+Minimal status tracker for `waybar` written in Go.
 
 `pinglod` keeps the in-memory state of dots, while `pinglo` sends events (`start`, `done`, `clear`) and renders the JSON payload for a Waybar module.
 
@@ -50,6 +50,23 @@ pinglo clear
 pinglo list
 ```
 
+## Generic dot API
+
+You can manage labeled dots with colors and tooltips without tying them to shell commands.
+
+```bash
+# add/update a dot
+pinglo dot set --id deploy --color "#ffc66d" --tooltip "Deploy running" --status running
+
+# mark it complete
+pinglo dot set --id deploy --status success --tooltip "Deploy succeeded"
+
+# remove a dot
+pinglo dot remove --id deploy
+```
+
+`dot set` accepts `--status` values `running`, `success`, or `failed` (defaults to `running` if omitted). The tooltip text is displayed as supplied, and the color is applied directly to the dot in Waybar. Use this API for any indicator that only needs a colored point and a short tooltip; the classic `start`/`done` helpers keep working for command tracking.
+
 ## Waybar: config snippet
 
 Add this module definition to your `~/.config/waybar/config`. `pinglod` uses `SIGRTMIN+4` by default, so the module must watch `signal: 4` and refresh `interval: "once"`:
@@ -98,24 +115,6 @@ In `~/.config/waybar/style.css`:
 
 #custom-pinglo.failed {
   color: #e06c75;
-}
-
-#custom-pinglo .pinglo-dot {
-  font-size: 16px;
-  margin-right: 2px;
-}
-
-#custom-pinglo .pinglo-running {
-  color: #e5c07b;
-}
-#custom-pinglo .pinglo-success {
-  color: #98c379;
-}
-#custom-pinglo .pinglo-failed {
-  color: #e06c75;
-}
-#custom-pinglo .pinglo-unknown {
-  color: #abb2bf;
 }
 ```
 

@@ -27,13 +27,23 @@ type Item struct {
 	StartedAt time.Time `json:"started_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Order     int       `json:"order"`
+	Color     string    `json:"color,omitempty"`
+	Tooltip   string    `json:"tooltip,omitempty"`
 }
 
 type Request struct {
-	Action   string `json:"action"`
-	Cwd      string `json:"cwd,omitempty"`
-	Command  string `json:"command,omitempty"`
-	ExitCode *int   `json:"exit_code,omitempty"`
+	Action   string      `json:"action"`
+	Cwd      string      `json:"cwd,omitempty"`
+	Command  string      `json:"command,omitempty"`
+	ExitCode *int        `json:"exit_code,omitempty"`
+	Dot      *DotRequest `json:"dot,omitempty"`
+}
+
+type DotRequest struct {
+	ID      string `json:"id,omitempty"`
+	Color   string `json:"color,omitempty"`
+	Tooltip string `json:"tooltip,omitempty"`
+	Status  Status `json:"status,omitempty"`
 }
 
 type Response struct {
@@ -154,6 +164,60 @@ func (m *Manager) List() []Item {
 func clone(item *Item) *Item {
 	cp := *item
 	return &cp
+}
+
+func (m *Manager) SetDot(id, color, tooltip string, status Status) *Item {
+	if strings.TrimSpace(id) == "" {
+		m.nextID++
+		id = fmt.Sprintf("dot-%d", m.nextID)
+	}
+	if status == "" {
+		status = StatusRunning
+	}
+
+	m.mu.Lock()
+	now := time.Now()
+	item, ok := m.items[id]
+	if !ok {
+		m.order++
+		item = &Item{
+			ID:        id,
+			Key:       id,
+			Status:    status,
+			StartedAt: now,
+			Order:     m.order,
+		}
+		m.items[id] = item
+	}
+	item.Status = status
+	if color != "" {
+		item.Color = color
+	}
+	if tooltip != "" {
+		item.Tooltip = tooltip
+	}
+	item.UpdatedAt = now
+	if item.StartedAt.IsZero() {
+		item.StartedAt = now
+	}
+	result := clone(item)
+	m.mu.Unlock()
+	m.trigger()
+	return result
+}
+
+func (m *Manager) RemoveDot(id string) bool {
+	if strings.TrimSpace(id) == "" {
+		return false
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.items[id]; !ok {
+		return false
+	}
+	delete(m.items, id)
+	m.trigger()
+	return true
 }
 
 func (m *Manager) trigger() {

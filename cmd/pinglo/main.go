@@ -65,6 +65,42 @@ func main() {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(resp.Items)
+	case "dot":
+		if len(args) == 0 {
+			die("dot command requires subcommand (set/remove)")
+		}
+		switch args[0] {
+		case "set":
+			fs := flag.NewFlagSet("dot set", flag.ExitOnError)
+			id := fs.String("id", "", "dot ID (required)")
+			color := fs.String("color", "", "dot color (hex) for the foreground")
+			tooltip := fs.String("tooltip", "", "tooltip text")
+			status := fs.String("status", "", "dot status: running|success|failed")
+			socketFlag := fs.String("socket", socket, "unix socket path")
+			_ = fs.Parse(args[1:])
+			if strings.TrimSpace(*id) == "" {
+				die("dot set: --id is required")
+			}
+			st, err := parseStatus(*status)
+			if err != nil {
+				die(err.Error())
+			}
+			sendOrDie(*socketFlag, pinglo.Request{
+				Action: "dot",
+				Dot:    &pinglo.DotRequest{ID: *id, Color: *color, Tooltip: *tooltip, Status: st},
+			})
+		case "remove":
+			fs := flag.NewFlagSet("dot remove", flag.ExitOnError)
+			id := fs.String("id", "", "dot ID (required)")
+			socketFlag := fs.String("socket", socket, "unix socket path")
+			_ = fs.Parse(args[1:])
+			if strings.TrimSpace(*id) == "" {
+				die("dot remove: --id is required")
+			}
+			sendOrDie(*socketFlag, pinglo.Request{Action: "dot-remove", Dot: &pinglo.DotRequest{ID: *id}})
+		default:
+			die("dot command must be set or remove")
+		}
 	case "render":
 		fs := flag.NewFlagSet("render", flag.ExitOnError)
 		mode := fs.String("format", "waybar", "render format: waybar|plain")
@@ -160,7 +196,7 @@ func renderDots(items []pinglo.Item) string {
 	}
 	parts := make([]string, 0, len(items))
 	for _, item := range items {
-		parts = append(parts, dotForStatus(item.Status))
+		parts = append(parts, renderDot(item))
 	}
 	return strings.Join(parts, " ")
 }
@@ -171,9 +207,55 @@ func renderTooltip(items []pinglo.Item) string {
 	}
 	lines := make([]string, 0, len(items))
 	for i, item := range items {
-		lines = append(lines, fmt.Sprintf("%d. [%s] %s\n%s", i+1, item.Status, item.Command, item.Cwd))
+		tooltip := item.Tooltip
+		if tooltip == "" {
+			parts := make([]string, 0, 2)
+			if item.Command != "" {
+				parts = append(parts, item.Command)
+			}
+			if item.Cwd != "" {
+				parts = append(parts, item.Cwd)
+			}
+			tooltip = strings.Join(parts, "\n")
+			if tooltip == "" {
+				tooltip = "<no details>"
+			}
+		}
+		lines = append(lines, fmt.Sprintf("%d. [%s] %s", i+1, item.Status, tooltip))
 	}
 	return strings.Join(lines, "\n")
+}
+
+func renderDot(item pinglo.Item) string {
+	color := item.Color
+	if color == "" {
+		color = defaultColorForStatus(item.Status)
+	}
+	return fmt.Sprintf(`<span foreground="%s">●</span>`, color)
+}
+
+func defaultColorForStatus(status pinglo.Status) string {
+	switch status {
+	case pinglo.StatusSuccess:
+		return "#98c379"
+	case pinglo.StatusFailed:
+		return "#e06c75"
+	default:
+		return "#e5c07b"
+	}
+}
+
+func parseStatus(in string) (pinglo.Status, error) {
+	switch strings.TrimSpace(strings.ToLower(in)) {
+	case "", "running":
+		return pinglo.StatusRunning, nil
+	case "success", "ok":
+		return pinglo.StatusSuccess, nil
+	case "failed", "failure":
+		return pinglo.StatusFailed, nil
+	default:
+		return "", fmt.Errorf("unknown status: %s", in)
+	}
 }
 
 func dotForStatus(s pinglo.Status) string {
@@ -214,12 +296,15 @@ Usage:
   pinglo done --cmd "make test" --exit-code 0 [--cwd DIR] [--socket PATH]
   pinglo clear [--socket PATH]
   pinglo list [--socket PATH]
+  pinglo dot set --id ID [--color COLOR] [--tooltip TEXT] [--status running|success|failed] [--socket PATH]
+  pinglo dot remove --id ID [--socket PATH]
   pinglo render [--format waybar|plain] [--socket PATH]
 
 Examples:
   pinglo start --cmd "sleep 20"
+  pinglo dot set --id custom --color "#ff0" --tooltip "custom work"
+  pinglo dot remove --id custom
   pinglo done --cmd "sleep 20" --exit-code 0
-  pinglo clear
 
 Tip:
   use shell hooks to automate start/done calls.`)

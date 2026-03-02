@@ -82,3 +82,29 @@ func TestDefaultSocketPathEnvPrecedence(t *testing.T) {
 		t.Fatalf("expected fallback socket, got empty")
 	}
 }
+
+func TestSetDotCustom(t *testing.T) {
+	mgr := NewManager(nil)
+	mgr.SetDot("custom-1", "#123456", "tooltip text", StatusRunning)
+	items := mgr.List()
+	if len(items) != 1 {
+		t.Fatalf("expected 1 dot, got %d", len(items))
+	}
+	if items[0].Color != "#123456" || items[0].Tooltip != "tooltip text" || items[0].ID != "custom-1" {
+		t.Fatalf("dot did not keep custom attributes: %+v", items[0])
+	}
+}
+
+func TestRemoveDot(t *testing.T) {
+	mgr := NewManager(nil)
+	mgr.SetDot("a", "", "", StatusFailed)
+	if !mgr.RemoveDot("a") {
+		t.Fatalf("expected remove to succeed")
+	}
+	if len(mgr.List()) != 0 {
+		t.Fatalf("expected zero items after remove")
+	}
+	if mgr.RemoveDot("a") {
+		t.Fatalf("removing absent dot should return false")
+	}
+}

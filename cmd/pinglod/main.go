@@ -102,6 +102,18 @@ func dispatch(req pinglo.Request, mgr *pinglo.Manager) pinglo.Response {
 	case "clear":
 		mgr.Clear()
 		return pinglo.Response{OK: true, Items: nil}
+	case "dot":
+		if req.Dot == nil || strings.TrimSpace(req.Dot.ID) == "" {
+			return pinglo.Response{OK: false, Error: "dot requires dot.id"}
+		}
+		mgr.SetDot(strings.TrimSpace(req.Dot.ID), strings.TrimSpace(req.Dot.Color), strings.TrimSpace(req.Dot.Tooltip), req.Dot.Status)
+		return pinglo.Response{OK: true, Items: mgr.List()}
+	case "dot-remove":
+		if req.Dot == nil || strings.TrimSpace(req.Dot.ID) == "" {
+			return pinglo.Response{OK: false, Error: "dot-remove requires dot.id"}
+		}
+		mgr.RemoveDot(strings.TrimSpace(req.Dot.ID))
+		return pinglo.Response{OK: true, Items: mgr.List()}
 	case "list":
 		return pinglo.Response{OK: true, Items: mgr.List()}
 	default:
