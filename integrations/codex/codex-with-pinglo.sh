@@ -28,7 +28,6 @@ status_from_rollout() {
 
   local last
   # Interactive Codex sessions emit task lifecycle + final_answer markers.
-  # Non-interactive streams may still emit turn.* events, so support both.
   last="$(rg -N '"type":"(task_started|task_complete|turn.started|turn.completed|turn.failed|error)"|"phase":"final_answer"' "$path" 2>/dev/null | tail -n 1 || true)"
 
   if [[ "$last" == *'"type":"turn.failed"'* || "$last" == *'"type":"error"'* ]]; then

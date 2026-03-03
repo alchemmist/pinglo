@@ -177,10 +177,9 @@ Override color only when provider semantics require custom palette; otherwise re
 
 ## Codex CLI integration
 
-`pinglo` includes two external Codex wrappers:
+`pinglo` includes an external Codex wrapper:
 
 - `integrations/codex/codex-with-pinglo.sh` for interactive TUI (`codex`)
-- `integrations/codex/pinglo-codex-chat.sh` for non-interactive `codex exec --json`
 
 Use plain `codex` if you do not want tracking. Use `codex-with-pinglo.sh` when you want Waybar dots.
 
@@ -209,13 +208,7 @@ make run-codex-integration
 
 `codex-with-pinglo.sh` reads Codex local state (`~/.codex/state_5.sqlite`) and each thread `rollout_path`, then maps latest events to dot status.
 
-### Optional non-interactive mode
-
-```bash
-integrations/codex/pinglo-codex-chat.sh exec "summarize current repo"
-```
-
-Both wrappers use thread-aware IDs (`integration:codex:<thread_id>`) so each Codex chat is rendered as a separate dot.
+The wrapper uses thread-aware IDs (`integration:codex:<thread_id>`) so each Codex chat is rendered as a separate dot.
 
 ## Waybar: config snippet
 
