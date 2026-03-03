@@ -11,6 +11,7 @@ POLL_INTERVAL="${PINGLO_CODEX_POLL_INTERVAL:-0.7}"
 COLOR_WAITING="#ffc66d"
 COLOR_DONE="#98c379"
 COLOR_FAILED="#e06c75"
+PINGLO_CODEX_MON_PID=""
 
 sql_quote() {
   local value="$1"
@@ -98,10 +99,30 @@ run_with_monitor() {
     echo "codex integration error: codex binary not found" >&2
     return 1
   fi
+  if ! command -v rg >/dev/null 2>&1; then
+    echo "codex integration error: required CLI 'rg' not found" >&2
+    return 1
+  fi
+  if ! command -v sqlite3 >/dev/null 2>&1; then
+    echo "codex integration error: required CLI 'sqlite3' not found" >&2
+    return 1
+  fi
   if [[ ! -f "$STATE_DB" ]]; then
     echo "codex integration error: state db not found at $STATE_DB" >&2
     return 1
   fi
+
+  cleanup_monitor() {
+    local pid="${PINGLO_CODEX_MON_PID:-}"
+    if [[ -z "$pid" ]]; then
+      return
+    fi
+    if kill -0 "$pid" >/dev/null 2>&1; then
+      kill "$pid" >/dev/null 2>&1 || true
+    fi
+    wait "$pid" 2>/dev/null || true
+    PINGLO_CODEX_MON_PID=""
+  }
 
   local start_epoch cwd mon_pid codex_ec
   start_epoch="$(date +%s)"
@@ -114,14 +135,16 @@ run_with_monitor() {
     done
   ) &
   mon_pid=$!
+  PINGLO_CODEX_MON_PID="$mon_pid"
+  trap cleanup_monitor EXIT INT TERM
 
   set +e
   codex "$@"
   codex_ec=$?
   set -e
 
-  kill "$mon_pid" >/dev/null 2>&1 || true
-  wait "$mon_pid" 2>/dev/null || true
+  trap - EXIT INT TERM
+  cleanup_monitor
 
   sync_threads_once "$start_epoch" "$cwd"
   return "$codex_ec"
