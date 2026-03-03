@@ -175,6 +175,46 @@ Recommended default mapping:
 
 Override color only when provider semantics require custom palette; otherwise rely on default status colors.
 
+## Codex CLI integration
+
+`pinglo` includes an external integration wrapper for Codex CLI:
+
+`integrations/codex/pinglo-codex-chat.sh`
+
+It runs `codex exec --json`, tracks stream events, and mirrors each Codex chat as a dedicated dot.
+
+### What it does
+
+- Creates a dot in `running` (yellow) while waiting for the model response.
+- Switches dot to `success` (green) when response is completed.
+- Switches dot to `failed` (red) on stream failure or non-zero Codex exit.
+- Uses thread-aware IDs (`integration:codex:<thread_id>`) so each chat is rendered as a separate dot.
+
+### Run it
+
+```bash
+# one-shot prompt
+integrations/codex/pinglo-codex-chat.sh exec "summarize current repo"
+
+# continue the latest thread
+integrations/codex/pinglo-codex-chat.sh exec resume --last "continue"
+```
+
+Optional convenience target:
+
+```bash
+make run-codex-integration
+```
+
+### Event mapping used by the wrapper
+
+- `thread.started` / `turn.started` -> `running`
+- `turn.completed` -> `success`
+- `turn.failed` -> `failed`
+- `error` -> `failed`
+
+The script forwards Codex JSONL output to your terminal unchanged while updating dots in parallel.
+
 ## Waybar: config snippet
 
 Add this module definition to your `~/.config/waybar/config`. `pinglod` uses `SIGRTMIN+4` by default, so the module must watch `signal: 4` and refresh `interval: "once"`:

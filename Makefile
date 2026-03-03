@@ -3,7 +3,7 @@ INTEGRATIONS_DIR := ./integrations
 GOBIN := $(shell go env GOPATH)/bin
 GOFILES := ./cmd/pinglo ./cmd/pinglod ./...
 
-.PHONY: all build test clean run-daemon install run-integration-template
+.PHONY: all build test clean run-daemon install run-integration-template run-codex-integration
 
 all: build
 
@@ -29,6 +29,9 @@ run-daemon:
 
 run-integration-template:
 	$(INTEGRATIONS_DIR)/templates/integration-template.sh
+
+run-codex-integration:
+	$(INTEGRATIONS_DIR)/codex/pinglo-codex-chat.sh exec
 
 install: build
 	mkdir -p $(GOBIN)
