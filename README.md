@@ -177,11 +177,12 @@ Override color only when provider semantics require custom palette; otherwise re
 
 ## Codex CLI integration
 
-`pinglo` includes an external integration wrapper for Codex CLI:
+`pinglo` includes two external Codex wrappers:
 
-`integrations/codex/pinglo-codex-chat.sh`
+- `integrations/codex/codex-with-pinglo.sh` for interactive TUI (`codex`)
+- `integrations/codex/pinglo-codex-chat.sh` for non-interactive `codex exec --json`
 
-It runs `codex exec --json`, tracks stream events, and mirrors each Codex chat as a dedicated dot.
+Use plain `codex` if you do not want tracking. Use `codex-with-pinglo.sh` when you want Waybar dots.
 
 ### What it does
 
@@ -190,14 +191,14 @@ It runs `codex exec --json`, tracks stream events, and mirrors each Codex chat a
 - Switches dot to `failed` (red) on stream failure or non-zero Codex exit.
 - Uses thread-aware IDs (`integration:codex:<thread_id>`) so each chat is rendered as a separate dot.
 
-### Run it
+### Run interactive Codex with tracking
 
 ```bash
-# one-shot prompt
-integrations/codex/pinglo-codex-chat.sh exec "summarize current repo"
+# start interactive TUI + pinglo tracking
+integrations/codex/codex-with-pinglo.sh
 
-# continue the latest thread
-integrations/codex/pinglo-codex-chat.sh exec resume --last "continue"
+# same codex args are forwarded
+integrations/codex/codex-with-pinglo.sh --profile work --search
 ```
 
 Optional convenience target:
@@ -206,14 +207,15 @@ Optional convenience target:
 make run-codex-integration
 ```
 
-### Event mapping used by the wrapper
+`codex-with-pinglo.sh` reads Codex local state (`~/.codex/state_5.sqlite`) and each thread `rollout_path`, then maps latest events to dot status.
 
-- `thread.started` / `turn.started` -> `running`
-- `turn.completed` -> `success`
-- `turn.failed` -> `failed`
-- `error` -> `failed`
+### Optional non-interactive mode
 
-The script forwards Codex JSONL output to your terminal unchanged while updating dots in parallel.
+```bash
+integrations/codex/pinglo-codex-chat.sh exec "summarize current repo"
+```
+
+Both wrappers use thread-aware IDs (`integration:codex:<thread_id>`) so each Codex chat is rendered as a separate dot.
 
 ## Waybar: config snippet
 

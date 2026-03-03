@@ -148,6 +148,7 @@ func send(socket string, req pinglo.Request) (pinglo.Response, error) {
 		return pinglo.Response{}, fmt.Errorf("cannot connect to pinglod (%s): %w", socket, err)
 	}
 	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(1500 * time.Millisecond))
 
 	if err := json.NewEncoder(conn).Encode(req); err != nil {
 		return pinglo.Response{}, err

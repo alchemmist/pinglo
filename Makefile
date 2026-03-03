@@ -31,7 +31,7 @@ run-integration-template:
 	$(INTEGRATIONS_DIR)/templates/integration-template.sh
 
 run-codex-integration:
-	$(INTEGRATIONS_DIR)/codex/pinglo-codex-chat.sh exec
+	$(INTEGRATIONS_DIR)/codex/codex-with-pinglo.sh
 
 install: build
 	mkdir -p $(GOBIN)

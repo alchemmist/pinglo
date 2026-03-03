@@ -60,7 +60,6 @@ switch_entity_if_needed() {
   if [[ -z "$next_entity" || "$next_entity" == "$CURRENT_ENTITY" ]]; then
     return
   fi
-  pinglo_integration_remove "$PROVIDER" "$CURRENT_ENTITY"
   CURRENT_ENTITY="$next_entity"
   set_waiting "$CURRENT_ENTITY"
 }
@@ -110,6 +109,11 @@ run_exec() {
   if ! command -v codex >/dev/null 2>&1; then
     echo "codex integration error: codex binary not found" >&2
     return 1
+  fi
+  if [[ "$#" -eq 0 ]]; then
+    echo "codex integration error: missing prompt/args for codex exec" >&2
+    usage >&2
+    return 2
   fi
 
   local tmp_dir fifo codex_pid codex_ec
