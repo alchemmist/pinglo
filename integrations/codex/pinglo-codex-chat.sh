@@ -116,7 +116,17 @@ run_exec() {
     return 2
   fi
 
-  local tmp_dir fifo codex_pid codex_ec
+  local tmp_dir="" fifo="" codex_pid codex_ec
+  cleanup() {
+    if [[ -n "$fifo" && -p "$fifo" ]]; then
+      rm -f "$fifo"
+    fi
+    if [[ -n "$tmp_dir" && -d "$tmp_dir" ]]; then
+      rmdir "$tmp_dir" 2>/dev/null || true
+    fi
+  }
+  trap cleanup EXIT INT TERM
+
   tmp_dir="$(mktemp -d)"
   fifo="$tmp_dir/codex-stream"
   mkfifo "$fifo"
@@ -129,8 +139,11 @@ run_exec() {
 
   consume_stream <"$fifo"
 
-  wait "$codex_pid"
-  codex_ec=$?
+  if wait "$codex_pid"; then
+    codex_ec=0
+  else
+    codex_ec=$?
+  fi
 
   if [[ "$codex_ec" -eq 0 ]]; then
     if [[ "$CURRENT_STATUS" == "running" ]]; then
@@ -142,8 +155,8 @@ run_exec() {
     fi
   fi
 
-  rm -f "$fifo"
-  rmdir "$tmp_dir"
+  trap - EXIT INT TERM
+  cleanup
   return "$codex_ec"
 }
 
