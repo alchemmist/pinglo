@@ -11,7 +11,6 @@ COLOR_DONE="#98c379"
 COLOR_FAILED="#e06c75"
 
 CURRENT_ENTITY=""
-CURRENT_THREAD_ID=""
 CURRENT_STATUS="running"
 
 extract_field() {
@@ -76,7 +75,6 @@ consume_stream() {
 
     thread_id="$(extract_field "$line" "thread_id")"
     if [[ -n "$thread_id" ]]; then
-      CURRENT_THREAD_ID="$thread_id"
       switch_entity_if_needed "$thread_id"
     fi
 
@@ -116,8 +114,24 @@ run_exec() {
     return 2
   fi
 
-  local tmp_dir="" fifo="" codex_pid codex_ec
+  local tmp_dir="" fifo="" codex_pid="" codex_ec=""
   cleanup() {
+    local pid="$codex_pid"
+    if [[ -n "$pid" ]] && kill -0 "$pid" >/dev/null 2>&1; then
+      kill -TERM "$pid" >/dev/null 2>&1 || true
+      local i
+      for i in {1..20}; do
+        if ! kill -0 "$pid" >/dev/null 2>&1; then
+          break
+        fi
+        sleep 0.1
+      done
+      if kill -0 "$pid" >/dev/null 2>&1; then
+        kill -KILL "$pid" >/dev/null 2>&1 || true
+      fi
+      wait "$pid" 2>/dev/null || true
+      codex_pid=""
+    fi
     if [[ -n "$fifo" && -p "$fifo" ]]; then
       rm -f "$fifo"
     fi
@@ -144,6 +158,7 @@ run_exec() {
   else
     codex_ec=$?
   fi
+  codex_pid=""
 
   if [[ "$codex_ec" -eq 0 ]]; then
     if [[ "$CURRENT_STATUS" == "running" ]]; then
