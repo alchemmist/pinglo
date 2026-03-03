@@ -132,6 +132,10 @@ run_exec() {
       wait "$pid" 2>/dev/null || true
       codex_pid=""
     fi
+    if [[ -n "$CURRENT_ENTITY" && "$CURRENT_STATUS" == "running" ]]; then
+      set_failed "$CURRENT_ENTITY" "codex interrupted" || true
+      CURRENT_STATUS="failed"
+    fi
     if [[ -n "$fifo" && -p "$fifo" ]]; then
       rm -f "$fifo"
     fi

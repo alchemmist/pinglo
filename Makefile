@@ -28,11 +28,11 @@ clean:
 run-daemon:
 	$(BIN_DIR)/pinglod
 
-run-integration-template:
-	$(INTEGRATIONS_DIR)/templates/integration-template.sh
+run-integration-template: build-pinglo
+	PINGLO_BIN=$(BIN_DIR)/pinglo $(INTEGRATIONS_DIR)/templates/integration-template.sh
 
-run-codex-integration:
-	$(INTEGRATIONS_DIR)/codex/codex-with-pinglo.sh
+run-codex-integration: build-pinglo
+	PINGLO_BIN=$(BIN_DIR)/pinglo $(INTEGRATIONS_DIR)/codex/codex-with-pinglo.sh
 
 lint-shellcheck:
 	shellcheck $(SHELL_SCRIPTS)
