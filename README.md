@@ -2,7 +2,7 @@
 
 Minimal status tracker for `waybar` written in Go.
 
-`pinglod` keeps the in-memory state of dots, while `pinglo` sends events (`start`, `done`, `clear`) and renders the JSON payload for a Waybar module.
+`pinglod` manages dots in memory and persists them to disk, while `pinglo` sends events (`start`, `done`, `clear`) and renders the JSON payload for a Waybar module.
 
 ## What’s implemented
 
@@ -76,6 +76,104 @@ pinglo dot remove --id deploy
 `dot set` accepts `--status` values `running`, `success`, or `failed` (defaults to `running` if omitted). The tooltip text is displayed as supplied, and the color is applied directly to the dot in Waybar. Use this API for any indicator that only needs a colored point and a short tooltip; the classic `start`/`done` helpers keep working for command tracking.
 
 Because the daemon persists its state, dots created via `dot set` survive `pinglod` restarts and even system boot, so long as the state file remains reachable.
+
+## Integrations architecture
+
+`pinglo` is intentionally split into:
+
+- Small core daemon + CLI (`pinglod`, `pinglo`)
+- Generic `dot` API for external producers
+- Provider-specific integrations outside the core
+
+This lets you add new sources of status (tasks, Codex chats, CI pipelines, deploy hooks, etc.) without growing `internal/pinglo` and without changing the wire protocol.
+
+### Why keep integrations outside the core
+
+- The core stays stable: only state management and rendering logic live there.
+- Integration-specific lifecycle rules remain isolated.
+- You can ship, test, and version integrations independently.
+- New providers can be prototyped as scripts before promoting to dedicated binaries.
+
+### Integration filesystem layout
+
+```text
+integrations/
+  README.md
+  lib/
+    pinglo-dot.sh
+  templates/
+    integration-template.sh
+  codex/
+    ...
+```
+
+### Integration contract
+
+Every integration should only use these public commands:
+
+- `pinglo dot set --id ... --status running|success|failed --tooltip ... [--color ...]`
+- `pinglo dot remove --id ...`
+
+No integration should write state files directly or call daemon internals.
+
+### Dot ID namespace
+
+Use namespaced IDs so integration dots never collide with task dots or manual dots:
+
+`integration:<provider>:<entity-id>`
+
+Examples:
+
+- `integration:codex:019cb508-f0e6-7201-86d1-0ece0e906456`
+- `integration:ci:build-7841`
+- `integration:deploy:prod-eu-west-1`
+
+### Lifecycle recommendation
+
+Use a simple state machine per external entity:
+
+1. Create/update dot as `running` when work starts.
+2. Update dot to `success` when completed.
+3. Update dot to `failed` if an error occurs.
+4. Optionally remove the dot when entity is no longer relevant.
+
+Keep tooltip concise and actionable; first line should identify source and entity, next lines can include status details.
+
+### Reusable helper library
+
+`integrations/lib/pinglo-dot.sh` contains shared helpers:
+
+- `pinglo_integration_dot_id <provider> <entity>`
+- `pinglo_integration_set <provider> <entity> <status> <tooltip> [color]`
+- `pinglo_integration_remove <provider> <entity>`
+
+Integrations should source this file instead of duplicating shell glue.
+
+### Create a new integration
+
+1. Copy template:
+
+```bash
+cp integrations/templates/integration-template.sh integrations/<provider>/<provider>-watch.sh
+chmod +x integrations/<provider>/<provider>-watch.sh
+```
+
+2. Replace:
+- `PROVIDER` with provider name (e.g. `codex`, `ci`, `k8s`)
+- `ENTITY` with a stable per-item identifier (task id, thread id, build id, etc.)
+- status updates with your provider event mapping
+
+3. Run integration side-by-side with `pinglod`; dots will appear in existing Waybar module immediately.
+
+### Event-to-status mapping guideline
+
+Recommended default mapping:
+
+- in-progress/waiting -> `running`
+- done/ok -> `success`
+- error/cancel/timeout -> `failed`
+
+Override color only when provider semantics require custom palette; otherwise rely on default status colors.
 
 ## Waybar: config snippet
 

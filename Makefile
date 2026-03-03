@@ -1,8 +1,9 @@
 BIN_DIR := ./bin
+INTEGRATIONS_DIR := ./integrations
 GOBIN := $(shell go env GOPATH)/bin
 GOFILES := ./cmd/pinglo ./cmd/pinglod ./...
 
-.PHONY: all build test clean run-daemon install
+.PHONY: all build test clean run-daemon install run-integration-template
 
 all: build
 
@@ -25,6 +26,9 @@ clean:
 
 run-daemon:
 	$(BIN_DIR)/pinglod
+
+run-integration-template:
+	$(INTEGRATIONS_DIR)/templates/integration-template.sh
 
 install: build
 	mkdir -p $(GOBIN)
