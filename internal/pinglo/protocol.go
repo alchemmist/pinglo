@@ -223,11 +223,12 @@ func (m *Manager) RemoveDot(id string) bool {
 		return false
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if _, ok := m.items[id]; !ok {
+		m.mu.Unlock()
 		return false
 	}
 	delete(m.items, id)
+	m.mu.Unlock()
 	m.persist()
 	m.trigger()
 	return true
