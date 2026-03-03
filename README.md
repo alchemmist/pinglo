@@ -9,7 +9,7 @@ Minimal status tracker for `waybar` written in Go.
 - Yellow dot when a command becomes `running` (`start`)
 - Green dot when the command finishes successfully (`done --exit-code 0`)
 - Red dot when the command finishes with a failure (`done --exit-code != 0`)
-- Simultaneous tracking of up to ten long-running commands
+- Simultaneous tracking of long-running commands
 - Deduplication by `cwd + command`: rerunning the same command in the same directory updates the same dot
 - Clearing all dots (`clear`)
 
@@ -174,5 +174,4 @@ Call `pinglo clear` to wipe the module manually.
 
 ## Limitations
 
-- State is held in memory; restarting the daemon clears everything.
 - The shell hook example tracks a single active command per session; extending it to multiple concurrent commands requires additional bookkeeping.
