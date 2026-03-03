@@ -2,8 +2,9 @@ BIN_DIR := ./bin
 INTEGRATIONS_DIR := ./integrations
 GOBIN := $(shell go env GOPATH)/bin
 GOFILES := ./cmd/pinglo ./cmd/pinglod ./...
+SHELL_SCRIPTS := $(shell find . -type f -name '*.sh' -not -path './.git/*' | sort)
 
-.PHONY: all build test clean run-daemon install run-integration-template run-codex-integration
+.PHONY: all build test clean run-daemon install run-integration-template run-codex-integration lint-shellcheck
 
 all: build
 
@@ -32,6 +33,9 @@ run-integration-template:
 
 run-codex-integration:
 	$(INTEGRATIONS_DIR)/codex/codex-with-pinglo.sh
+
+lint-shellcheck:
+	shellcheck $(SHELL_SCRIPTS)
 
 install: build
 	mkdir -p $(GOBIN)
