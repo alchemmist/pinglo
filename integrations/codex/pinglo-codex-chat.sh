@@ -119,8 +119,8 @@ run_exec() {
     local pid="$codex_pid"
     if [[ -n "$pid" ]] && kill -0 "$pid" >/dev/null 2>&1; then
       kill -TERM "$pid" >/dev/null 2>&1 || true
-      local i
-      for i in {1..20}; do
+      local _
+      for _ in {1..20}; do
         if ! kill -0 "$pid" >/dev/null 2>&1; then
           break
         fi
