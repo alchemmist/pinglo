@@ -262,19 +262,6 @@ func parseStatus(in string) (pinglo.Status, error) {
 	}
 }
 
-func dotForStatus(s pinglo.Status) string {
-	switch s {
-	case pinglo.StatusRunning:
-		return `<span foreground="#e5c07b">●</span>`
-	case pinglo.StatusSuccess:
-		return `<span foreground="#98c379">●</span>`
-	case pinglo.StatusFailed:
-		return `<span foreground="#e06c75">●</span>`
-	default:
-		return `<span foreground="#abb2bf">●</span>`
-	}
-}
-
 func mustCwd() string {
 	cwd, err := os.Getwd()
 	if err != nil {
