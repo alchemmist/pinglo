@@ -16,7 +16,9 @@ GOLANGCI_LINT := $(GOBIN)/golangci-lint
 SHELL_SCRIPTS := $(shell find . -type f -name '*.sh' -not -path './.git/*' | sort)
 YAML_FILES := $(shell find . -type f \( -name '*.yml' -o -name '*.yaml' \) -not -path './.git/*' | sort)
 
-.PHONY: help check build build-pinglo build-pinglod test test-race fmt fmt-check fmt-go fmt-go-check fmt-sh fmt-sh-check vet staticcheck golangci-lint lint lint-shellcheck lint-yaml lint-makefile run-daemon run-integration-template run-codex-integration install clean
+.PHONY: all help check build build-pinglo build-pinglod test test-race fmt fmt-check fmt-go fmt-go-check fmt-sh fmt-sh-check vet staticcheck golangci-lint lint lint-shellcheck lint-yaml lint-makefile run-daemon run-integration-template run-codex-integration install clean
+
+all: check
 
 check: fmt-check lint test build
 
